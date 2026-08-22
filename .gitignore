@@ -1,0 +1,29 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+
+# Large/local data
+data/raw/*
+data/processed/*
+
+# Trained models
+models/*.pkl
+models/*.joblib
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
