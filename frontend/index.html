@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>RiskPilot AI</title>
+
+    <link
+        rel="stylesheet"
+        href="/style.css"
+    >
+</head>
+
+<body>
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
+    <header class="topbar">
+
+        <div class="brand">
+
+            <div class="brand-mark">
+                RP
+            </div>
+
+            <div>
+                <h1>RiskPilot AI</h1>
+
+                <p>
+                    Cost-Aware Fraud Decision Engine
+                </p>
+            </div>
+
+        </div>
+
+
+        <div class="system-status">
+
+            <span
+                id="statusDot"
+                class="status-dot"
+            ></span>
+
+            <span id="statusText">
+                Checking API...
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
+    <main class="container">
+
+        <!-- Introduction -->
+
+        <section class="hero">
+
+            <div>
+
+                <span class="eyebrow">
+                    AI-POWERED TRANSACTION RISK
+                </span>
+
+                <h2>
+                    Make fraud decisions using
+                    <span>risk + economic cost.</span>
+                </h2>
+
+                <p>
+                    RiskPilot combines machine-learning fraud
+                    probability with merchant-specific economic
+                    costs to recommend whether a transaction
+                    should be approved, reviewed, or blocked.
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             INPUT + RESULT
+        ================================================== -->
+
+        <section class="workspace">
+
+            <!-- ================= INPUT ================= -->
+
+            <div class="card input-card">
+
+                <div class="card-header">
+
+                    <div>
+
+                        <span class="section-label">
+                            TRANSACTION
+                        </span>
+
+                        <h3>
+                            Analyze a transaction
+                        </h3>
+
+                    </div>
+
+                    <button
+                        id="sampleButton"
+                        class="secondary-button"
+                        type="button"
+                    >
+                        Load Example
+                    </button>
+
+                </div>
+
+
+                <form id="predictionForm">
+
+                    <!-- Transaction type -->
+
+                    <div class="form-group">
+
+                        <label for="type">
+                            Transaction Type
+                        </label>
+
+                        <select id="type">
+
+                            <option value="TRANSFER">
+                                TRANSFER
+                            </option>
+
+                            <option value="CASH_OUT">
+                                CASH_OUT
+                            </option>
+
+                            <option value="PAYMENT">
+                                PAYMENT
+                            </option>
+
+                            <option value="CASH_IN">
+                                CASH_IN
+                            </option>
+
+                            <option value="DEBIT">
+                                DEBIT
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Merchant -->
+
+                    <div class="form-group">
+
+                        <label for="merchant">
+                            Merchant Profile
+                        </label>
+
+                        <select id="merchant">
+
+                            <option value="E_COMMERCE">
+                                E-Commerce
+                            </option>
+
+                            <option value="SMALL_MERCHANT">
+                                Small Merchant
+                            </option>
+
+                            <option value="HIGH_VALUE_MERCHANT">
+                                High Value Merchant
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <!-- Step -->
+
+                    <div class="form-group">
+
+                        <label for="step">
+                            Transaction Step
+                        </label>
+
+                        <input
+                            id="step"
+                            type="number"
+                            min="0"
+                            value="650"
+                            required
+                        >
+
+                        <small>
+                            Time-step used by the model.
+                        </small>
+
+                    </div>
+
+
+                    <!-- Amount -->
+
+                    <div class="form-group">
+
+                        <label for="amount">
+                            Transaction Amount
+                        </label>
+
+                        <div class="input-with-prefix">
+
+                            <span>₹</span>
+
+                            <input
+                                id="amount"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value="5000"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Balances -->
+
+                    <div class="two-column">
+
+                        <div class="form-group">
+
+                            <label for="oldbalanceOrg">
+                                Origin Balance
+                            </label>
+
+                            <div class="input-with-prefix">
+
+                                <span>₹</span>
+
+                                <input
+                                    id="oldbalanceOrg"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value="7500"
+                                    required
+                                >
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="form-group">
+
+                            <label for="oldbalanceDest">
+                                Destination Balance
+                            </label>
+
+                            <div class="input-with-prefix">
+
+                                <span>₹</span>
+
+                                <input
+                                    id="oldbalanceDest"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value="1000"
+                                    required
+                                >
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Analyze -->
+
+                    <button
+                        id="analyzeButton"
+                        class="primary-button"
+                        type="submit"
+                    >
+
+                        <span id="buttonText">
+                            Analyze Transaction
+                        </span>
+
+                        <span
+                            id="buttonSpinner"
+                            class="spinner hidden"
+                        ></span>
+
+                    </button>
+
+                </form>
+
+            </div>
+
+
+            <!-- ================= RESULT ================= -->
+
+            <div
+                id="resultCard"
+                class="card result-card"
+            >
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        ◎
+                    </div>
+
+                    <h3>
+                        No transaction analyzed
+                    </h3>
+
+                    <p>
+                        Enter transaction details and click
+                        <strong>
+                            Analyze Transaction
+                        </strong>
+                        to generate a RiskPilot decision.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             HOW IT WORKS
+        ================================================== -->
+
+        <section class="how-section">
+
+            <div class="section-heading">
+
+                <span class="section-label">
+                    DECISION PIPELINE
+                </span>
+
+                <h3>
+                    How RiskPilot works
+                </h3>
+
+            </div>
+
+
+            <div class="pipeline">
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-number">
+                        01
+                    </div>
+
+                    <h4>
+                        Transaction
+                    </h4>
+
+                    <p>
+                        Capture transaction attributes and
+                        account balances.
+                    </p>
+
+                </div>
+
+
+                <div class="pipeline-arrow">
+                    →
+                </div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-number">
+                        02
+                    </div>
+
+                    <h4>
+                        ML Risk
+                    </h4>
+
+                    <p>
+                        Random Forest estimates the probability
+                        of fraud.
+                    </p>
+
+                </div>
+
+
+                <div class="pipeline-arrow">
+                    →
+                </div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-number">
+                        03
+                    </div>
+
+                    <h4>
+                        Economic Cost
+                    </h4>
+
+                    <p>
+                        RiskPilot calculates the expected cost
+                        of each possible action.
+                    </p>
+
+                </div>
+
+
+                <div class="pipeline-arrow">
+                    →
+                </div>
+
+
+                <div class="pipeline-step">
+
+                    <div class="pipeline-number">
+                        04
+                    </div>
+
+                    <h4>
+                        Decision
+                    </h4>
+
+                    <p>
+                        The lowest expected-cost action becomes
+                        the recommendation.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             FOOTER
+        ================================================== -->
+
+        <footer>
+
+            <span>
+                RiskPilot AI
+            </span>
+
+            <span>
+                Explainable • Economic • Reproducible
+            </span>
+
+        </footer>
+
+    </main>
+
+
+    <script src="/app.js"></script>
+
+</body>
+</html>

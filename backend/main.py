@@ -1,7 +1,9 @@
+from pathlib import Path
 from typing import Dict, List
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.decision_engine import (
@@ -293,3 +295,20 @@ def review_queue(
             orient="records"
         ),
     }
+# ============================================================
+# Frontend
+# ============================================================
+
+FRONTEND_DIR = (
+    Path(__file__).resolve().parent.parent
+    / "frontend"
+)
+
+app.mount(
+    "/",
+    StaticFiles(
+        directory=str(FRONTEND_DIR),
+        html=True,
+    ),
+    name="frontend",
+)
