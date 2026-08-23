@@ -651,6 +651,28 @@ Review Capacity
 
 into a unified fraud decision system.
 
+### Capacity-Constrained Review Experiment
+
+RiskPilot was evaluated on a held-out test set containing 2,562 transactions,
+including 1,264 fraud transactions.
+
+The experiment assumes a human review capacity of 50 transactions.
+
+| Metric | Highest-Risk Baseline | RiskPilot |
+|---|---:|---:|
+| Review capacity | 50 | 50 |
+| Transactions reviewed | 50 | 50 |
+| Fraud captured | 50 | 50 |
+| Fraud capture rate over test fraud | 3.96% | 3.96% |
+| Review-set overlap | — | 98.00% |
+| Transaction value reviewed | ₹291.51M | ₹290.93M |
+| Average risk probability | 1.0000 | 1.0000 |
+
+RiskPilot therefore preserved the fraud capture achieved by the
+highest-risk baseline in this experiment while changing the review
+selection objective from raw risk ranking to an economically informed
+decision policy.
+
 Important: The experiment does not claim that RiskPilot universally outperforms the highest-risk strategy. The result is specific to the evaluated test split and demonstrates the behavior of the implemented decision framework.
 
 ---
