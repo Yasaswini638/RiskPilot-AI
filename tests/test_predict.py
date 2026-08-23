@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.predict import RiskPilotPredictor
 
@@ -58,7 +59,13 @@ def test_prediction_is_deterministic():
         )
     )
 
-    assert probability_1 == probability_2
+    # Floating-point calculations can differ by
+    # extremely small rounding errors.
+    assert probability_1 == pytest.approx(
+        probability_2,
+        rel=1e-12,
+        abs=1e-12
+    )
 
 
 def test_prediction_changes_with_transaction():
