@@ -1,0 +1,2 @@
+﻿review_rank,transaction_id,step,type,amount,oldbalanceOrg,oldbalanceDest,isFraud,risk_probability
+50,1946,704,CASH_OUT,1820864.64,1820864.64,1116665.47,1,0.9999753101566937

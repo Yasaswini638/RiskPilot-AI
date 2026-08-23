@@ -1,0 +1,29 @@
+{
+    "review_capacity": 50,
+    "total_test_transactions": 2562,
+    "total_fraud_transactions": 1264,
+    "strategy_a": {
+        "transactions_reviewed": 50,
+        "fraud_transactions_captured": 50,
+        "fraud_capture_rate": 0.03955696202531646,
+        "total_transaction_value_reviewed": 291506408.78,
+        "average_risk_probability": 0.9999801753790277
+    },
+    "strategy_b": {
+        "transactions_reviewed": 50,
+        "fraud_transactions_captured": 50,
+        "fraud_capture_rate": 0.03955696202531646,
+        "total_transaction_value_reviewed": 290927770.91999996,
+        "average_risk_probability": 0.9999801753790277
+    },
+    "comparison": {
+        "common_transactions": 49,
+        "overlap_percentage": 0.98,
+        "strategy_a_only": 1,
+        "riskpilot_only": 1,
+        "fraud_missed_by_riskpilot": 1,
+        "additional_fraud_captured_by_riskpilot": 1,
+        "transaction_value_difference": -578637.8600000143,
+        "fraud_capture_rate_difference": 0.0
+    }
+}
