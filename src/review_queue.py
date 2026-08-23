@@ -1,120 +1,26 @@
+from typing import Dict
+
 import pandas as pd
+
+from src.decision_engine import calculate_action_costs
 
 
 def calculate_review_priority(
     risk_probability: float,
-    amount: float
+    amount: float,
 ) -> float:
     """
-    Calculate the economic priority of a transaction
-    for human review.
+    Calculate expected fraud exposure.
 
-    Priority is based on:
+    Formula:
 
         risk_probability × transaction amount
 
-    This represents the estimated fraud exposure
-    associated with the transaction.
+    This is useful as a simple risk-exposure ranking signal.
     """
 
     return float(
         risk_probability * amount
-    )
-
-
-def build_review_queue(
-    transactions: pd.DataFrame,
-    review_capacity: int = 50,
-) -> pd.DataFrame:
-    """
-    Select the highest-priority transactions for human review.
-
-    Required columns:
-        transaction_id
-        risk_probability
-        amount
-
-    Parameters:
-        transactions:
-            DataFrame containing scored transactions.
-
-        review_capacity:
-            Maximum number of transactions that humans
-            can review.
-
-    Returns:
-        DataFrame containing the selected transactions,
-        sorted by review priority.
-    """
-
-    if review_capacity <= 0:
-        raise ValueError(
-            "review_capacity must be greater than zero."
-        )
-
-    required_columns = {
-        "transaction_id",
-        "risk_probability",
-        "amount",
-    }
-
-    missing_columns = (
-        required_columns
-        - set(transactions.columns)
-    )
-
-    if missing_columns:
-        raise ValueError(
-            "Missing required columns: "
-            + ", ".join(sorted(missing_columns))
-        )
-
-    queue = transactions.copy()
-
-    # --------------------------------------------------------
-    # Calculate economic review priority
-    # --------------------------------------------------------
-
-    queue["review_priority"] = (
-        queue["risk_probability"]
-        * queue["amount"]
-    )
-
-    # --------------------------------------------------------
-    # Highest economic exposure first
-    # --------------------------------------------------------
-
-    queue = queue.sort_values(
-        "review_priority",
-        ascending=False
-    )
-
-    # --------------------------------------------------------
-    # Respect human review capacity
-    # --------------------------------------------------------
-
-    queue = queue.head(
-        min(
-            review_capacity,
-            len(queue)
-        )
-    ).copy()
-
-    # --------------------------------------------------------
-    # Add queue position
-    # --------------------------------------------------------
-
-    queue.insert(
-        0,
-        "review_rank",
-        range(
-            1,
-            len(queue) + 1
-        )
-    )
-
-    return queue.reset_index(
-        drop=True
     )
 
 
@@ -124,51 +30,25 @@ def explain_review_priority(
     review_priority: float,
 ) -> str:
     """
-    Generate a human-readable explanation
-    for why a transaction has review priority.
+    Generate a human-readable explanation for economic exposure.
     """
 
     return (
         f"Risk probability is "
         f"{risk_probability:.2%} and transaction value is "
         f"₹{amount:,.2f}, producing an estimated "
-        f"economic exposure of "
-        f"₹{review_priority:,.2f}."
+        f"economic exposure of ₹{review_priority:,.2f}."
     )
 
 
-def build_economic_review_queue(
+def build_review_queue(
     transactions: pd.DataFrame,
-    merchant_profile: dict,
     review_capacity: int = 50,
 ) -> pd.DataFrame:
     """
-    Build a review queue using RiskPilot's economic model.
+    Build a simple risk-exposure review queue.
 
-    Transactions are prioritized according to the
-    expected economic benefit of human review rather
-    than raw fraud probability.
-
-    Required columns:
-        transaction_id
-        risk_probability
-        amount
-
-    Parameters:
-        transactions:
-            DataFrame containing scored transactions.
-
-        merchant_profile:
-            Merchant-specific cost assumptions used by
-            the RiskPilot decision engine.
-
-        review_capacity:
-            Maximum number of transactions that humans
-            can review.
-
-    Returns:
-        DataFrame containing economically valuable
-        transactions selected for human review.
+    This function is retained as the baseline queue strategy.
     """
 
     if review_capacity <= 0:
@@ -190,15 +70,125 @@ def build_economic_review_queue(
     if missing_columns:
         raise ValueError(
             "Missing required columns: "
-            + ", ".join(sorted(missing_columns))
+            + ", ".join(
+                sorted(missing_columns)
+            )
         )
 
-    from src.decision_engine import calculate_action_costs
+    queue = transactions.copy()
+
+    queue["review_priority"] = (
+        queue["risk_probability"]
+        * queue["amount"]
+    )
+
+    queue = (
+        queue
+        .sort_values(
+            "review_priority",
+            ascending=False,
+        )
+        .head(
+            review_capacity
+        )
+        .copy()
+    )
+
+    queue.insert(
+        0,
+        "review_rank",
+        range(
+            1,
+            len(queue) + 1,
+        ),
+    )
+
+    return queue.reset_index(
+        drop=True
+    )
+
+
+def build_economic_review_queue(
+    transactions: pd.DataFrame,
+    merchant_profile: Dict[str, float],
+    review_capacity: int = 50,
+    minimum_risk: float = 0.50,
+    critical_risk: float = 0.95,
+) -> pd.DataFrame:
+    """
+    Build the RiskPilot economic review queue.
+
+    Policy:
+
+    1. Only transactions above minimum_risk are eligible.
+
+    2. Critical-risk transactions receive protected priority.
+
+    3. Remaining capacity is allocated using economic
+       review value.
+
+    4. Remaining capacity is filled using risk priority.
+
+    5. Every selected transaction receives complete cost
+       and explanation information.
+    """
+
+    if review_capacity <= 0:
+        raise ValueError(
+            "review_capacity must be greater than zero."
+        )
+
+    if not 0 <= minimum_risk <= 1:
+        raise ValueError(
+            "minimum_risk must be between 0 and 1."
+        )
+
+    if not 0 <= critical_risk <= 1:
+        raise ValueError(
+            "critical_risk must be between 0 and 1."
+        )
+
+    if critical_risk < minimum_risk:
+        raise ValueError(
+            "critical_risk must be greater than or equal "
+            "to minimum_risk."
+        )
+
+    required_columns = {
+        "transaction_id",
+        "risk_probability",
+        "amount",
+    }
+
+    missing_columns = (
+        required_columns
+        - set(transactions.columns)
+    )
+
+    if missing_columns:
+        raise ValueError(
+            "Missing required columns: "
+            + ", ".join(
+                sorted(missing_columns)
+            )
+        )
 
     queue = transactions.copy()
 
     # --------------------------------------------------------
-    # Calculate expected cost of each possible action
+    # Candidate pool
+    # --------------------------------------------------------
+
+    queue = queue[
+        queue["risk_probability"]
+        >= minimum_risk
+    ].copy()
+
+    if queue.empty:
+        return queue
+
+    # --------------------------------------------------------
+    # Calculate expected action costs
     # --------------------------------------------------------
 
     cost_records = []
@@ -226,125 +216,280 @@ def build_economic_review_queue(
             ],
         )
 
-        cost_records.append(costs)
+        cost_records.append(
+            costs
+        )
 
     costs_df = pd.DataFrame(
         cost_records,
-        index=queue.index
+        index=queue.index,
     )
 
-    queue["approve_cost"] = costs_df[
-        "APPROVE"
-    ]
+    queue["approve_cost"] = (
+        costs_df["APPROVE"]
+    )
 
-    queue["review_cost"] = costs_df[
-        "REVIEW"
-    ]
+    queue["review_cost"] = (
+        costs_df["REVIEW"]
+    )
 
-    queue["block_cost"] = costs_df[
-        "BLOCK"
-    ]
+    queue["block_cost"] = (
+        costs_df["BLOCK"]
+    )
 
     # --------------------------------------------------------
-    # Find the cheapest automatic alternative
-    #
-    # Human review is compared against APPROVE and BLOCK.
+    # Best automatic decision
     # --------------------------------------------------------
 
-    queue["best_automatic_cost"] = queue[
-        [
-            "approve_cost",
-            "block_cost"
+    queue["best_automatic_cost"] = (
+        queue[
+            [
+                "approve_cost",
+                "block_cost",
+            ]
         ]
-    ].min(axis=1)
+        .min(axis=1)
+    )
+
+    queue["best_automatic_action"] = (
+        queue[
+            [
+                "approve_cost",
+                "block_cost",
+            ]
+        ]
+        .idxmin(axis=1)
+        .map(
+            {
+                "approve_cost": "APPROVE",
+                "block_cost": "BLOCK",
+            }
+        )
+    )
 
     # --------------------------------------------------------
-    # Calculate economic value of human review
-    #
-    # Positive value means review is cheaper than the
-    # best automatic alternative.
+    # Economic review value
     # --------------------------------------------------------
 
-    queue["review_value"] = (
+    queue["economic_review_value"] = (
         queue["best_automatic_cost"]
         - queue["review_cost"]
     )
 
-    # --------------------------------------------------------
-    # Identify the best automatic alternative
-    # --------------------------------------------------------
-
-    queue["best_automatic_action"] = queue[
-        [
-            "approve_cost",
-            "block_cost"
-        ]
-    ].idxmin(axis=1)
-
-    queue["best_automatic_action"] = (
-        queue["best_automatic_action"]
-        .map({
-            "approve_cost": "APPROVE",
-            "block_cost": "BLOCK"
-        })
+    # Keep the older name for compatibility.
+    queue["review_value"] = (
+        queue["economic_review_value"]
     )
 
     # --------------------------------------------------------
-    # Generate human-readable review explanation
+    # Risk exposure
     # --------------------------------------------------------
+
+    queue["review_priority"] = (
+        queue["risk_probability"]
+        * queue["amount"]
+    )
+
+    # --------------------------------------------------------
+    # Critical-risk protection
+    # --------------------------------------------------------
+
+    queue["critical_risk_protection"] = (
+        queue["risk_probability"]
+        >= critical_risk
+    )
+
+    # --------------------------------------------------------
+    # Selection reason
+    # --------------------------------------------------------
+
+    queue["selection_reason"] = "ECONOMIC_PRIORITY"
+
+    queue.loc[
+        queue["critical_risk_protection"],
+        "selection_reason",
+    ] = "CRITICAL_RISK_PROTECTION"
 
     queue["review_reason"] = queue.apply(
         lambda row: (
-            f"Human review could reduce expected cost by "
-            f"₹{row['review_value']:,.2f} compared with "
-            f"the best automatic action "
-            f"({row['best_automatic_action']})."
+            "Critical-risk protection: transaction risk "
+            f"is {row['risk_probability']:.2%}, exceeding "
+            f"the {critical_risk:.0%} protection threshold."
+            if row["critical_risk_protection"]
+            else (
+                "Economic priority: human review has an "
+                f"estimated economic advantage of "
+                f"₹{max(row['economic_review_value'], 0):,.2f} "
+                "over the best automatic action."
+            )
         ),
-        axis=1
+        axis=1,
     )
 
     # --------------------------------------------------------
-    # Keep only transactions where human review
-    # provides positive economic value
+    # Stage 1 — Critical-risk transactions
     # --------------------------------------------------------
 
-    queue = queue[
-        queue["review_value"] > 0
+    critical = (
+        queue[
+            queue["critical_risk_protection"]
+        ]
+        .sort_values(
+            [
+                "risk_probability",
+                "review_priority",
+            ],
+            ascending=[
+                False,
+                False,
+            ],
+        )
+        .head(
+            review_capacity
+        )
+        .copy()
+    )
+
+    selected_ids = set(
+        critical["transaction_id"]
+    )
+
+    remaining_capacity = (
+        review_capacity
+        - len(critical)
+    )
+
+    # --------------------------------------------------------
+    # Stage 2 — Positive economic value
+    # --------------------------------------------------------
+
+    remaining = queue[
+        ~queue["transaction_id"].isin(
+            selected_ids
+        )
     ].copy()
 
-    # --------------------------------------------------------
-    # Highest economic value first
-    # --------------------------------------------------------
+    economic = (
+        remaining[
+            remaining["economic_review_value"]
+            > 0
+        ]
+        .sort_values(
+            [
+                "economic_review_value",
+                "risk_probability",
+            ],
+            ascending=[
+                False,
+                False,
+            ],
+        )
+        .head(
+            remaining_capacity
+        )
+        .copy()
+    )
 
-    queue = queue.sort_values(
-        "review_value",
-        ascending=False
+    selected_ids.update(
+        economic["transaction_id"]
+    )
+
+    remaining_capacity -= len(
+        economic
     )
 
     # --------------------------------------------------------
-    # Respect human review capacity
+    # Stage 3 — Risk fallback
     # --------------------------------------------------------
 
-    queue = queue.head(
-        min(
-            review_capacity,
-            len(queue)
+    remaining = queue[
+        ~queue["transaction_id"].isin(
+            selected_ids
         )
-    ).copy()
+    ].copy()
+
+    fallback = (
+        remaining
+        .sort_values(
+            [
+                "risk_probability",
+                "review_priority",
+            ],
+            ascending=[
+                False,
+                False,
+            ],
+        )
+        .head(
+            remaining_capacity
+        )
+        .copy()
+    )
+
+    fallback["selection_reason"] = (
+        "HIGH_RISK_FALLBACK"
+    )
+
+    fallback["review_reason"] = fallback.apply(
+        lambda row: (
+            "High-risk fallback selected because review "
+            "capacity remained available. "
+            f"Risk probability: "
+            f"{row['risk_probability']:.2%}."
+        ),
+        axis=1,
+    )
 
     # --------------------------------------------------------
-    # Add review queue position
+    # Combine
     # --------------------------------------------------------
 
-    queue.insert(
+    final_queue = pd.concat(
+        [
+            critical,
+            economic,
+            fallback,
+        ],
+        ignore_index=True,
+    )
+
+    # --------------------------------------------------------
+    # Final ordering
+    # --------------------------------------------------------
+
+    final_queue = (
+        final_queue
+        .sort_values(
+            [
+                "critical_risk_protection",
+                "risk_probability",
+                "economic_review_value",
+            ],
+            ascending=[
+                False,
+                False,
+                False,
+            ],
+        )
+        .head(
+            review_capacity
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    # --------------------------------------------------------
+    # Review rank
+    # --------------------------------------------------------
+
+    final_queue.insert(
         0,
         "review_rank",
         range(
             1,
-            len(queue) + 1
-        )
+            len(final_queue) + 1,
+        ),
     )
 
-    return queue.reset_index(
-        drop=True
-    )
+    return final_queue
