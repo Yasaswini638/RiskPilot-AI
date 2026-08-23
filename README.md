@@ -1,8 +1,3 @@
-You're right. The issue is that my previous answer was rendered as a large Markdown block, and the interface can visually collapse/clip very long pasted content. You want one single copy-pasteable block, with the entire README from beginning to end, not pieces or explanations around it.
-
-Below is the complete README in one single code block. Copy everything inside the block directly into `README.md`.
-
-
 # RiskPilot AI
 
 ## Cost-Aware Adaptive Fraud Decision Engine
