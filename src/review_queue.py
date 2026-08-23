@@ -1,5 +1,3 @@
-from typing import Optional
-
 import pandas as pd
 
 
@@ -11,12 +9,12 @@ def calculate_review_priority(
     Calculate the economic priority of a transaction
     for human review.
 
-    The current prototype priority score is:
+    Priority is based on:
 
         risk_probability × transaction amount
 
-    This estimates the transaction's expected fraud exposure
-    before considering merchant-specific policy adjustments.
+    This represents the estimated fraud exposure
+    associated with the transaction.
     """
 
     return float(
@@ -126,7 +124,7 @@ def explain_review_priority(
     review_priority: float,
 ) -> str:
     """
-    Generate a simple human-readable explanation
+    Generate a human-readable explanation
     for why a transaction has review priority.
     """
 
@@ -134,8 +132,11 @@ def explain_review_priority(
         f"Risk probability is "
         f"{risk_probability:.2%} and transaction value is "
         f"₹{amount:,.2f}, producing an estimated "
-        f"economic exposure of ₹{review_priority:,.2f}."
+        f"economic exposure of "
+        f"₹{review_priority:,.2f}."
     )
+
+
 def build_economic_review_queue(
     transactions: pd.DataFrame,
     merchant_profile: dict,
@@ -144,13 +145,30 @@ def build_economic_review_queue(
     """
     Build a review queue using RiskPilot's economic model.
 
-    Transactions are prioritized according to the economic
-    benefit of reviewing them rather than raw fraud probability.
+    Transactions are prioritized according to the
+    expected economic benefit of human review rather
+    than raw fraud probability.
 
     Required columns:
         transaction_id
         risk_probability
         amount
+
+    Parameters:
+        transactions:
+            DataFrame containing scored transactions.
+
+        merchant_profile:
+            Merchant-specific cost assumptions used by
+            the RiskPilot decision engine.
+
+        review_capacity:
+            Maximum number of transactions that humans
+            can review.
+
+    Returns:
+        DataFrame containing economically valuable
+        transactions selected for human review.
     """
 
     if review_capacity <= 0:
@@ -180,7 +198,7 @@ def build_economic_review_queue(
     queue = transactions.copy()
 
     # --------------------------------------------------------
-    # Calculate expected cost of each action
+    # Calculate expected cost of each possible action
     # --------------------------------------------------------
 
     cost_records = []
@@ -228,15 +246,10 @@ def build_economic_review_queue(
     ]
 
     # --------------------------------------------------------
-    # Economic value of reviewing
+    # Find the cheapest automatic alternative
+    #
+    # Human review is compared against APPROVE and BLOCK.
     # --------------------------------------------------------
-    #
-    # If we review a transaction, we avoid choosing the
-    # cheapest automatic alternative.
-    #
-    # The larger the avoided cost, the more valuable the
-    # human review slot.
-    #
 
     queue["best_automatic_cost"] = queue[
         [
@@ -245,11 +258,19 @@ def build_economic_review_queue(
         ]
     ].min(axis=1)
 
+    # --------------------------------------------------------
+    # Calculate economic value of human review
+    #
+    # Positive value means review is cheaper than the
+    # best automatic alternative.
+    # --------------------------------------------------------
+
     queue["review_value"] = (
         queue["best_automatic_cost"]
         - queue["review_cost"]
     )
-        # --------------------------------------------------------
+
+    # --------------------------------------------------------
     # Identify the best automatic alternative
     # --------------------------------------------------------
 
@@ -269,7 +290,7 @@ def build_economic_review_queue(
     )
 
     # --------------------------------------------------------
-    # Human-readable review reason
+    # Generate human-readable review explanation
     # --------------------------------------------------------
 
     queue["review_reason"] = queue.apply(
@@ -283,7 +304,8 @@ def build_economic_review_queue(
     )
 
     # --------------------------------------------------------
-    # Only transactions where review is economically useful
+    # Keep only transactions where human review
+    # provides positive economic value
     # --------------------------------------------------------
 
     queue = queue[
@@ -309,6 +331,10 @@ def build_economic_review_queue(
             len(queue)
         )
     ).copy()
+
+    # --------------------------------------------------------
+    # Add review queue position
+    # --------------------------------------------------------
 
     queue.insert(
         0,
